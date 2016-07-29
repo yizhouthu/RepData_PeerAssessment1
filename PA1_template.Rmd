@@ -1,0 +1,116 @@
+---
+title: "PA1_template.Rmd"
+author: "Yi Zhou"
+date: "July 29, 2016"
+output: html_document
+keep_md: true
+---
+
+## Loading and preprocessing the data
+
+```{r loadData}
+data <- read.csv("activity.csv")
+data$date <- as.Date(data$date)
+```
+
+## What is mean total number of steps taken per day?
+
+Firstly, calculate the total number of steps taken per day
+
+```{r calTotalSteps}
+totalSteps <- aggregate(steps ~ date, data, sum, na.rm = TRUE)
+```
+
+Secondly, make a histogram of the total number of steps taken each day
+
+```{r hist1}
+library(ggplot2)
+qplot(steps, data = totalSteps, bins = 30)
+```
+
+Thirdly, calculate and report the mean and median of the total number of steps taken per day
+
+```{r meanAndMedian1}
+mean(totalSteps$steps)
+median(totalSteps$steps)
+```
+
+## What is the average daily activity pattern?
+
+Firstly, make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r dailyPattern}
+library(ggplot2)
+stepsInterval <- aggregate(steps ~ interval, data, mean, na.rm = TRUE)
+ggplot(stepsInterval, aes(interval, steps)) + geom_line()
+```
+
+Secondly, which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r findMaxSteps}
+stepsInterval$interval[which.max(stepsInterval$steps)]
+```
+
+
+## Imputing missing values
+
+Firstly, calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+```{r numOfNAs}
+sum(is.na(data$steps))
+```
+
+Secondly, devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+* I use the mean for that 5-minute interval to fill in missing values
+
+Thirdly, create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r fillNAs,cache=TRUE}
+newData <- data
+for(i in 1:nrow(newData)) {
+    if(is.na(newData[i,]$steps)) {
+        newData[i,]$steps = stepsInterval[stepsInterval$interval == 
+            newData[i,]$interval,]$steps
+    }
+}
+```
+
+Finally, make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+* Histogram
+
+```{r hist2}
+library(ggplot2)
+newTotalSteps <- aggregate(steps ~ date, newData, sum, na.rm = TRUE)
+qplot(steps, data = newTotalSteps, bins = 30)
+```
+
+* Mean and Median
+
+```{r meanAndMedian2}
+mean(newTotalSteps$steps)
+median(newTotalSteps$steps)
+```
+
+* Impact of imputing: The difference comes from 8 days, which have no available data for steps (so steps in these dates are all NA's). Before filling with the mean, these dates are not shown in the histogram, but after it, they all become mean values. So we can see a boom in an interval slightly over 10000. They are all filled mean values. In addition, the median become equal to the mean because of the same reason.
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+Firstly, create a new factor variable in the dataset with two levels - “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+
+```{r weekdays}
+newData$day <- factor(
+    ifelse(weekdays.Date(newData$date) %in% c("Saturday", "Sunday"),
+           "weekend", "weekday")
+    )
+```
+
+Secondly, make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r cmpWeekdayAndWeekends}
+library(ggplot2)
+stepsInterval2 <- aggregate(steps ~ interval + day, data = newData, mean,
+                            na.rm = TRUE)
+ggplot(stepsInterval2, aes(interval, steps)) + geom_line() + facet_grid(day ~ .)
+```
